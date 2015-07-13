@@ -1,0 +1,55 @@
+- name: Configure Rsyncd service and add a zabbix module
+  hosts: all
+  sudo: False
+  vars:
+    init_file: ./files/rsyncd
+    conf_file: ./files/rsyncd.conf
+    sect_file: ./files/rsyncd.secrets
+  tasks:
+    - name: Install Rsyncd
+      yum: name=rsync state=installed
+
+    - name: Copy service script to init.d
+      copy: >
+        src={{ init_file }}
+        dest=/etc/rc.d/init.d/rsyncd
+        owner=root
+        group=root
+        mode=554
+
+    - name: Create rsync conf directory
+      file: > 
+        path=/etc/rsync
+        state=directory
+        owner=root
+        group=root
+
+    - name: Copy Configure file
+      copy: > 
+        src={{ conf_file }}
+        dest=/etc/rsync/rsyncd.conf
+        owner=root
+        group=root
+        mode=644
+  
+    - name: Copy Secret file
+      copy: >
+        src={{ sect_file }}
+        dest=/etc/rsync/rsyncd.secrets 
+        owner=root
+        group=root
+        mode=600
+
+    - name: Create Log directory
+      file: >
+        path=/var/log/rsync
+        state=directory
+        owner=root
+        group=root
+        
+    - name: dont start rsync unless you are very sure.
+      service: >
+        name=rsyncd 
+        state=stopped 
+        enabled=yes
+

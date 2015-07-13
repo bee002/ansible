@@ -1,0 +1,96 @@
+#!/bin/bash
+# chkconfig: 35 60 40
+# description: rsyncd
+
+# used for maintain rsyncd service 
+
+# return value :
+#   when issue [ service rsyncd start|stop ]
+#     0 - successful 
+#     1 - failed
+#   when issue [ service rsyncd status ]
+#     0 - rsyncd is running
+#     1 - rsyncd dead but pid exists
+#     2 - rsyncd dead but subsys locked
+#     3 - rsyncd is stopped
+#     4 - insufficient privileges
+#   when issue [ service rsyncd ]
+#     0 - print help message
+
+. /etc/rc.d/init.d/functions
+
+prog="rsyncd"
+bin="/usr/bin/rsync"
+conff="/etc/rsync/rsyncd.conf"
+pidf="/var/run/rsyncd.pid"
+lockf="/var/lock/subsys/rsyncd.lock"
+
+RETVAL=0
+
+r_start() {
+    echo -n $"Starting $prog:  "
+    daemon --pidfile ${pidf} ${bin} --daemon --config=${conff}
+    RETVAL=$?
+    echo 
+    [[ $RETVAL -eq 0 ]] && touch ${lockf} 
+}
+
+r_stop() {
+    echo -n $"Stopping $prog: "
+    killproc -p ${pidf} ${bin}
+    RETVAL=$?
+    echo 
+    rm -f ${lockf} ${pidf}
+}
+
+
+r_status() {
+    local r
+    GREP_COLOR_ORG=${GREP_COLOR}
+    r=`status -p ${pidf} ${bin}`
+    RETVAL=$?
+    if [[ -z "${r##*running*}" ]]; then
+        export GREP_COLOR='1;32'
+        echo ${r} | grep running --color
+    elif [[ -z "${r##*dead*}" ]]; then
+        export GREP_COLOR='1;31'
+        echo ${r} | grep dead --color
+    elif [[ -z "${r##*stopped*}" ]]; then
+        export GREP_COLOR='1;31'
+        echo ${r} | grep stopped --color
+    elif [[ -z "${r##*unknown*}" ]]; then
+        export GREP_COLOR='1;33'
+        echo ${r} | grep unknown --color
+    else
+        echo ${r}
+    fi
+    export GREP_COLOR=${GREP_COLOR_ORG}
+}
+
+case "$1" in 
+    start)
+        r_start
+        ;;
+    stop)
+        r_stop
+        ;;
+    status)
+        r_status
+        ;;
+    restart)
+        r_stop
+        r_start
+        ;;
+    *)
+        echo
+        echo 
+        echo "Usage:"
+        echo "    service $prog {start|stop|status|restart|clear}"
+        echo
+        echo "clear: clear pid_file and lock_file"
+        echo "reload: rsync do not need reload, the modi of conf take effect immediately"
+        echo 
+        RETVAL=0
+esac
+
+exit $RETVAL
